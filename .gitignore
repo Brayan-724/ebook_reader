@@ -1,0 +1,7 @@
+/target
+
+*.wav
+*.mp3
+*.log
+
+env.fish

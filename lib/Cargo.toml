@@ -1,0 +1,12 @@
+[package]
+name = "lib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+flo_canvas = { workspace = true }
+flo_render = { workspace = true }
+flo_render_canvas = { workspace = true }

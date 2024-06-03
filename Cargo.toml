@@ -1,0 +1,46 @@
+[package]
+name = "ebook_reader"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+hot-reload = [ "dep:hot-lib-reloader" ]
+
+[workspace]
+resolver = "2"
+members = ["lib"]
+
+[workspace.dependencies]
+flo_canvas = "0.4"
+flo_render = { version ="0.4", features = ["opengl"] }
+flo_render_canvas = "0.4"
+
+[dependencies]
+hot-lib-reloader = { version = "^0.6", optional = true }
+lib = { path = "lib" }
+
+# Rendering
+flo_canvas = { workspace = true }
+flo_render = { workspace = true }
+flo_render_canvas = { workspace = true }
+futures = "0.3.30"
+libc = "0.2.155"
+
+# Logs
+env_logger = "0.11.3"
+log = "0.4.21"
+crossterm = "0.27.0"
+
+# TTS
+percent-encoding = "2.3.1"
+minreq = { version = "2.11.2", features = ["https"] }
+symphonia = { version = "0.5.4", features = ["mp3", "wav"], default-features = false }
+
+[patch.crates-io]
+flo_canvas              = { git = "https://github.com/Brayan-724/flo_draw", branch = "v0.4" }
+flo_render              = { git = "https://github.com/Brayan-724/flo_draw", branch = "v0.4" }
+flo_render_canvas       = { git = "https://github.com/Brayan-724/flo_draw", branch = "v0.4" }
+flo_render_gl_offscreen = { git = "https://github.com/Brayan-724/flo_draw", branch = "v0.4" }
+
+flo_curves              = { git = "https://github.com/Logicalshift/flo_curves", branch = "v0.8" }
+desync                  = { git = "https://github.com/Logicalshift/desync", branch = "v0.9" }
