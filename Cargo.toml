@@ -34,7 +34,14 @@ crossterm = "0.27.0"
 # TTS
 percent-encoding = "2.3.1"
 minreq = { version = "2.11.2", features = ["https"] }
-symphonia = { version = "0.5.4", features = ["mp3", "wav"], default-features = false }
+gstreamer = "0.22.5"
+gstreamer-video = "0.22.5"
+gstreamer-audio = "0.22.5"
+glib = "0.19.7"
+pango = "0.19.5"
+cairo = "0.0.4"
+pangocairo = "0.19.2"
+cairo-rs = { version = "0.19.4", features = ["use_glib"] }
 
 [patch.crates-io]
 flo_canvas              = { git = "https://github.com/Brayan-724/flo_draw", branch = "v0.4" }

@@ -1,11 +1,11 @@
 mod languages;
 mod tokenizer;
 mod url;
-mod wav;
+// mod wav;
 
 pub use languages::Languages;
 use url::UrlTTS;
-pub use wav::mp3_to_wav;
+// pub use wav::mp3_to_wav;
 
 pub const GOOGLE_TTS_MAX_CHARS: usize = 100;
 
