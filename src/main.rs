@@ -7,10 +7,12 @@ mod renderizer;
 mod tts;
 mod utils;
 
+use std::io::Write;
 use std::ops;
 use std::sync::{Arc, Mutex};
 
 use glib::object::ObjectExt;
+use gst::message::StreamsSelected;
 use gstreamer as gst;
 use gstreamer_video as gst_video;
 
@@ -18,7 +20,7 @@ use gst::prelude::*;
 use pango::prelude::*;
 
 use error::EbookResult;
-use log::error;
+use log::{error, info};
 
 fn main() {
     if let Err(err) = run() {
@@ -31,30 +33,41 @@ fn main() {
 }
 
 fn run() -> EbookResult<()> {
+    env_logger::init();
+
+    info!("PIPELINE CREATING");
+
     let pipeline = create_pipeline()?;
 
+    info!("PIPELINE CREATED");
+
     pipeline.set_state(gst::State::Playing).unwrap();
+
+    info!("PIPELINE PLAYING");
 
     let bus = pipeline
         .bus()
         .expect("Pipeline without bus. Shouldn't happen!");
 
-    for msg in bus.iter_timed(gst::ClockTime::NONE) {
+    for msg in bus.iter_timed(gst::ClockTime::MIN_SIGNED) {
         use gst::MessageView;
 
         match msg.view() {
             MessageView::Eos(..) => break,
             MessageView::Error(err) => {
                 pipeline.set_state(gst::State::Null).unwrap();
+
                 let src = msg
                     .src()
                     .map(|s| s.path_string())
                     .unwrap_or_else(|| glib::GString::from("UNKNOWN"));
                 let error = err.error();
                 let debug = err.debug();
-                panic!("Received error from {src}: {error} (debug: {debug:?})");
+                error!("Received error from {src}: {error} (debug: {debug:?})");
+
+                return Ok(()); // FIXME: Should be error
             }
-            _ => (),
+            msg => info!("TICK {msg:#?}"),
         }
     }
 
@@ -68,52 +81,33 @@ fn create_pipeline() -> EbookResult<gst::Pipeline> {
         return Err(error::EbookError::Glib(err));
     };
 
-    let pipeline = gst::Pipeline::new();
+    let stream = {
+        let stream_key = std::env::var("TWITCH_STREAM_KEY").expect("No Stream Key");
+        format!("rtmpsink location=rtmp://live.twitch.tv/app/{stream_key}")
+    };
 
-    // The videotestsrc supports multiple test patterns. In this example, we will use the
-    // pattern with a white ball moving around the video's center point.
-    let src = gst::ElementFactory::make("videotestsrc")
-        .property_from_str("pattern", "ball")
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
+    let pipeline = format!("videotestsrc pattern=ball ! queue ! overlaycomposition name=overlay ! queue ! video/x-raw,width=1280,height=720,framerate=15/1 ! queue ! avenc_flv ! flvmux streamable=true ! autovideosink");
 
-    let overlay = gst::ElementFactory::make("overlaycomposition")
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
+    let mut context = gst::ParseContext::new();
+    let pipeline =
+        match gst::parse::launch_full(&pipeline, Some(&mut context), gst::ParseFlags::empty()) {
+            Ok(pipeline) => pipeline,
+            Err(err) => {
+                if let Some(gst::ParseError::NoSuchElement) = err.kind::<gst::ParseError>() {
+                    error!("Missing element(s): {:?}", context.missing_elements());
+                } else {
+                    error!("Failed to parse pipeline: {err}");
+                }
 
-    // Plug in a capsfilter element that will force the videotestsrc and the overlay to work
-    // with images of the size 800x800, and framerate of 15 fps, since my laptop struggles
-    // rendering it at the default 30 fps
-    let caps = gst_video::VideoCapsBuilder::new()
-        .width(1280)
-        .height(720)
-        .framerate((15, 1).into())
-        .build();
-    let capsfilter = gst::ElementFactory::make("capsfilter")
-        .property("caps", &caps)
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
+                std::process::exit(-1)
+            }
+        };
 
-    let videoconvert = gst::ElementFactory::make("videoconvert")
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
-    let enc = gst::ElementFactory::make("avenc_flv")
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
-    let mux = gst::ElementFactory::make("flvmux")
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
-    let sink = gst::ElementFactory::make("rtmpsink")
-        .property("location", format!("rtmp://live.twitch.tv/app/{}", std::env::var("TWITCH_STREAM_KEY").unwrap()))
-        .build()
-        .map_err(|err| error::EbookError::GlibBool(err))?;
+    let pipeline = pipeline
+        .downcast::<gst::Pipeline>()
+        .expect("Expected a gst::Pipeline");
 
-    pipeline
-        .add_many([&src, &overlay, &capsfilter, &videoconvert, &enc, &mux, &sink])
-        .map_err(|err| error::EbookError::GlibBool(err))?;
-
-    gst::Element::link_many([&src, &overlay, &capsfilter, &videoconvert, &enc, &mux, &sink])
-        .map_err(|err| error::EbookError::GlibBool(err))?;
+    let overlay = pipeline.by_name("overlay").expect("Sink element not found");
 
     // The PangoFontMap represents the set of fonts available for a particular rendering system.
     let fontmap = pangocairo::FontMap::new();
@@ -281,6 +275,73 @@ fn create_pipeline() -> EbookResult<gst::Pipeline> {
 
     Ok(pipeline)
 }
+
+// fn _create_pipeline() {
+//
+//     let pipeline = gst::Pipeline::new();
+//
+//     let src = gst::ElementFactory::make("videotestsrc")
+//         .property_from_str("pattern", "ball")
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//
+//     let overlay = gst::ElementFactory::make("overlaycomposition")
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//
+//     let caps = gst_video::VideoCapsBuilder::new()
+//         .width(1280)
+//         .height(720)
+//         .framerate((15, 1).into())
+//         .build();
+//     let capsfilter = gst::ElementFactory::make("capsfilter")
+//         .property("caps", &caps)
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//
+//     let videoconvert = gst::ElementFactory::make("videoconvert")
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//     let enc = gst::ElementFactory::make("avenc_flv")
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//     let mux = gst::ElementFactory::make("flvmux")
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//     let sink = gst::ElementFactory::make("rtmpsink")
+//         .property(
+//             "location",
+//             format!(
+//                 "rtmp://live.twitch.tv/app/{}",
+//                 std::env::var("TWITCH_STREAM_KEY").unwrap()
+//             ),
+//         )
+//         .build()
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//
+//     pipeline
+//         .add_many([
+//             &src,
+//             &overlay,
+//             &capsfilter,
+//             &videoconvert,
+//             &enc,
+//             &mux,
+//             &sink,
+//         ])
+//         .map_err(|err| error::EbookError::GlibBool(err))?;
+//
+//     gst::Element::link_many([
+//         &src,
+//         &overlay,
+//         &capsfilter,
+//         &videoconvert,
+//         &enc,
+//         &mux,
+//         &sink,
+//     ])
+//     .map_err(|err| error::EbookError::GlibBool(err))?;
+// }
 
 // fn draw_overlay(
 //     // renderizer: Arc<Mutex<Renderizer<impl OffscreenRenderContext>>>,
