@@ -1,13 +1,9 @@
 * TODO
-
   - ( ) Generate speech audio with gTTS 
-
     - Send f32 to ffmpeg
-
     - Convert mp3 (f32) to wav (u8)
 
 * _
-
   - *gTTS*: Google Text To Speech (Google Translate TTS)
 
 * Sample Data
