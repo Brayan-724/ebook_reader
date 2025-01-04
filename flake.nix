@@ -27,7 +27,7 @@
         pkg-config
       ];
 
-      LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath (with pkgs; [ 
+      LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath (with pkgs; [
         wlroots
         libclang
         libGL
