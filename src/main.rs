@@ -49,7 +49,7 @@ fn run() -> EbookResult<()> {
         .bus()
         .expect("Pipeline without bus. Shouldn't happen!");
 
-    for msg in bus.iter_timed(gst::ClockTime::MIN_SIGNED) {
+    for msg in bus.iter_timed(gst::ClockTime::default()) {
         use gst::MessageView;
 
         match msg.view() {

@@ -1,4 +1,5 @@
 set export
+set dotenv-load
 
 FLO_CARD := "1" # Video card, change this if you need
 
