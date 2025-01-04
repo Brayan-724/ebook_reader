@@ -1,13 +1,18 @@
 {
+  description = "Simple flake.";
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    crane.url = "github:ipetkov/crane";
   };
 
-  outputs = {nixpkgs, ...}: let
+  outputs = { nixpkgs, crane, self } : let
     system = "x86_64-linux";
     pkgs = import nixpkgs { inherit system; };
+    craneLib = crane.mkLib pkgs;
   in {
-    devShells.${system}.default = pkgs.mkShell {
+    # nix develop
+    devShells.${system}.default = craneLib.devShell {
       buildInputs = with pkgs; [
         just
         ffmpeg
