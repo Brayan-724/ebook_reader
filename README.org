@@ -4,5 +4,5 @@ Simple (maybe not enough) streamer bot for twitch, It can reads ebooks and strea
 
 ** Requirementes
 
-You need *Primary Stream key* it can be find in your `Creator Dashboard -> Settings -> Stream` the
+You need *Primary Stream key* it can be find in your =Creator Dashboard -> Settings -> Stream= the
 key need be load as an environment variable with the key *TWITCH_STREAM_KEY*.
