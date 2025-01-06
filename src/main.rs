@@ -49,7 +49,7 @@ fn run() -> EbookResult<()> {
         .bus()
         .expect("Pipeline without bus. Shouldn't happen!");
 
-    for msg in bus.iter_timed(None) {
+    for msg in bus.iter_timed(gst::ClockTime::SECOND) {
         use gst::MessageView;
 
         match msg.view() {
@@ -86,10 +86,10 @@ fn create_pipeline() -> EbookResult<gst::Pipeline> {
         format!("rtmpsink location=rtmp://live.twitch.tv/app/{stream_key}")
     };
 
-    let pipeline = format!("flvmux name=mux ! filesink location=test.flv \
-          audiotestsrc samplesperbuffer=44100 num-buffers=10 \
+    let pipeline = format!("flvmux name=mux ! {stream} \
+          audiotestsrc samplesperbuffer=44100 \
         ! mux. \
-          videotestsrc pattern=ball \
+          videotestsrc is-live=true pattern=ball \
         ! video/x-raw,framerate=25/1 \
         ! x264enc \
         ! mux. \
